@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KAISOUL AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #121212;
+      --bg-secondary: #1e1e1e;
+      --bg-tertiary: #2a2a2a;
+      --text-main: #e0e0e0;
+      --text-muted: #a0a0a0;
+      --accent: #7c4dff;
+      --accent-hover: #651fff;
+      --border: #333333;
+      --font-size: 15px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-primary); color: var(--text-main); font-size: var(--font-size); height: 100vh; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    #sidebar { width: 280px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: transform 0.3s; z-index: 100; }
+    .sidebar-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .logo { font-weight: bold; font-size: 1.2rem; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+    .nav-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .nav-btn { width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 6px; background: transparent; border: none; color: var(--text-main); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .nav-btn:hover, .nav-btn.active { background: var(--bg-tertiary); }
+    .new-chat-btn { background: var(--accent); color: white; margin: 12px; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: calc(100% - 24px); }
+
+    /* Main Area */
+    #main-content { flex: 1; display: flex; flex-direction: column; height: 100%; position: relative; }
+    header { height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: var(--bg-secondary); }
+    .menu-toggle { background: none; border: none; color: var(--text-main); font-size: 1.4rem; cursor: pointer; display: none; }
+
+    /* Views */
+    .view-panel { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    .view-panel.active { display: flex; }
+
+    /* Chat View */
+    #chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+    .message { display: flex; flex-direction: column; max-width: 85%; line-height: 1.5; }
+    .message.user { align-self: flex-end; background: var(--accent); color: white; padding: 10px 14px; border-radius: 16px 16px 0 16px; }
+    .message.ai { align-self: flex-start; background: var(--bg-secondary); padding: 14px; border-radius: 16px 16px 16px 0; border: 1px solid var(--border); width: 100%; }
+    .message pre { background: var(--bg-primary); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+    .message code { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
+    .sources-list { font-size: 0.8rem; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--text-muted); }
+
+    /* Input Bar */
+    .chat-input-container { padding: 12px; background: var(--bg-secondary); border-top: 1px solid var(--border); }
+    .file-preview { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .file-tag { background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+    .input-box { display: flex; items-center: center; gap: 8px; background: var(--bg-primary); padding: 8px 12px; border-radius: 24px; border: 1px solid var(--border); }
+    .input-box textarea { flex: 1; background: transparent; border: none; color: var(--text-main); resize: none; height: 24px; max-height: 100px; outline: none; }
+    .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 4px; }
+    .icon-btn:hover, .icon-btn.active { color: var(--accent); }
+
+    /* Workspace / Coding / Canvas Views */
+    .split-view { display: flex; flex: 1; height: 100%; overflow: hidden; }
+    .editor-pane, .preview-pane { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); margin: 8px; border-radius: 8px; background: var(--bg-secondary); }
+    .pane-header { padding: 8px 12px; background: var(--bg-tertiary); font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+    textarea.code-editor, textarea.canvas-area { width: 100%; flex: 1; background: transparent; border: none; color: var(--text-main); padding: 12px; font-family: monospace; resize: none; outline: none; }
+    iframe.preview-frame { width: 100%; flex: 1; border: none; background: white; }
+
+    /* Settings & Privacy */
+    .settings-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .setting-row input, .setting-row select { padding: 6px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-main); border-radius: 4px; }
+
+    /* Loading Spinner */
+    .typing-indicator { display: flex; gap: 4px; padding: 4px 0; }
+    .dot { width: 8px; height: 8px; background: var(--text-muted); border-radius: 50%; animation: blink 1.4s infinite ease-in-out both; }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #sidebar { position: absolute; height: 100%; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      .menu-toggle { display: block; }
+      .split-view { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">✦ KAISOUL AI</div>
+      <button class="icon-btn" onclick="toggleSidebar()">✕</button>
+    </div>
+    <button class="new-chat-btn" onclick="startNewChat()">+ Chat Mới</button>
+    <nav class="nav-list">
+      <button class="nav-btn active" onclick="switchView('chat')">💬 AI Chat & Multimodal</button>
+      <button class="nav-btn" onclick="switchView('coding')">💻 AI Coding Studio</button>
+      <button class="nav-btn" onclick="switchView('canvas')">📝 Canvas Workspace</button>
+      <button class="nav-btn" onclick="switchView('image')">🎨 Image Generation</button>
+      <button class="nav-btn" onclick="switchView('privacy')">🛡️ Privacy & Memory</button>
+      <button class="nav-btn" onclick="switchView('settings')">⚙️ Personalization</button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main id="main-content">
+    <header>
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div id="current-title" style="font-weight: bold;">KAISOUL AI</div>
+      <div></div>
+    </header>
+
+    <!-- Chat View -->
+    <section id="view-chat" class="view-panel active">
+      <div id="chat-messages">
+        <div class="message ai">Xin chào! Tôi là KAISOUL AI. Tôi có thể giúp gì cho bạn hôm nay?</div>
+      </div>
+      <div class="chat-input-container">
+        <div id="file-previews" class="file-preview"></div>
+        <div class="input-box">
+          <button class="icon-btn" onclick="document.getElementById('file-input').click()" title="Upload file">📎</button>
+          <input type="file" id="file-input" multiple style="display:none;" onchange="handleFileSelect(event)">
+          <textarea id="user-input" placeholder="Nhập tin nhắn..." onkeydown="handleKeyDown(event)"></textarea>
+          <button class="icon-btn" id="web-search-toggle" onclick="toggleWebSearch()" title="Bật/Tắt Web Search">🌐</button>
+          <button class="icon-btn" id="mic-btn" onclick="toggleSpeechRecognition()" title="Voice Input">🎙️</button>
+          <button class="icon-btn" onclick="sendMessage()" style="color:var(--accent);">➔</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coding Studio View -->
+    <section id="view-coding" class="view-panel">
+      <div class="split-view">
+        <div class="editor-pane">
+          <div class="pane-header">
+            <span>Mã Nguồn (HTML/JS/CSS)</span>
+            <button class="icon-btn" onclick="runCode()">▶ Chạy</button>
+          </div>
+          <textarea id="code-input" class="code-editor" placeholder="Nhập mã HTML/JS/CSS tại đây..."></textarea>
+        </div>
+        <div class="preview-pane">
+          <div class="pane-header">Xem Trước (Preview)</div>
+          <iframe id="code-preview" class="preview-frame"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- Canvas View -->
+    <section id="view-canvas" class="view-panel">
+      <div class="editor-pane" style="margin: 16px;">
+        <div class="pane-header">
+          <span>Canvas Trực Quan</span>
+          <button class="icon-btn" onclick="clearCanvas()">Xóa</button>
+        </div>
+        <textarea id="canvas-input" class="canvas-area" placeholder="Soạn thảo văn bản, danh sách, ghi chú tại đây..."></textarea>
+      </div>
+    </section>
+
+    <!-- Image Gen View -->
+    <section id="view-image" class="view-panel" style="padding: 16px; overflow-y: auto;">
+      <div class="settings-card">
+        <h3>Tạo Ảnh với Imagen 3</h3>
+        <br>
+        <input type="text" id="image-prompt" placeholder="Mô tả bức ảnh bạn muốn tạo..." style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-main); border-radius: 6px;">
+        <br><br>
+        <button onclick="generateImage()" style="background: var(--accent); color: white; padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer;">Tạo Ảnh</button>
+        <br><br>
+        <div id="image-result" style="text-align: center;"></div>
+      </div>
+    </section>
+
+    <!-- Privacy & Memory View -->
+    <section id="view-privacy" class="view-panel" style="padding: 16px; overflow-y: auto;">
+      <div class="settings-card">
+        <h3>Quản Lý Ký Ức (Memory)</h3>
+        <p style="color: var(--text-muted); margin-bottom: 12px;">KAISOUL AI chỉ ghi nhớ khi bạn cho phép.</p>
+        <div style="display:flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="new-memory" placeholder="Thêm ký ức mới..." style="flex:1; padding: 8px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-main); border-radius: 4px;">
+          <button onclick="addMemory()" style="background: var(--accent); color: white; padding: 8px 12px; border: none; border-radius: 4px;">Lưu</button>
+        </div>
+        <ul id="memory-list" style="list-style: none;"></ul>
+        <br>
+        <button onclick="clearAllMemories()" style="background: #e53935; color: white; padding: 8px 12px; border: none; border-radius: 4px;">Xóa Tất Cả Ký Ức</button>
+      </div>
+    </section>
+
+    <!-- Settings View -->
+    <section id="view-settings" class="view-panel" style="padding: 16px; overflow-y: auto;">
+      <div class="settings-card">
+        <h3>Cá Nhân Hóa</h3>
+        <br>
+        <div class="setting-row">
+          <span>Tên AI</span>
+          <input type="text" id="setting-ai-name" value="KAISOUL AI" onchange="updateSettings()">
+        </div>
+        <div class="setting-row">
+          <span>Phong cách trả lời</span>
+          <select id="setting-style" onchange="updateSettings()">
+            <option value="Cân bằng">Cân bằng</option>
+            <option value="Ngắn gọn">Ngắn gọn</option>
+            <option value="Chi tiết">Chi tiết</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Kích thước chữ</span>
+          <select id="setting-font-size" onchange="updateSettings()">
+            <option value="15px">Vừa</option>
+            <option value="13px">Nhỏ</option>
+            <option value="17px">Lớn</option>
+          </select>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // State App
+    let selectedFiles = [];
+    let isWebSearchActive = false;
+    let memories = JSON.parse(localStorage.getItem("kaisoul_memories") || "[]");
+    let settings = JSON.parse(localStorage.getItem("kaisoul_settings") || '{"aiName":"KAISOUL AI","style":"Cân bằng","fontSize":"15px"}');
+    let isSpeaking = false;
+
+    // Toggle Sidebar
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("open");
+    }
+
+    // Switch View
+    function switchView(viewName) {
+      document.querySelectorAll(".view-panel").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
+      
+      const targetView = document.getElementById(`view-${viewName}`);
+      if (targetView) targetView.classList.add("active");
+      
+      document.getElementById("current-title").innerText = viewName.toUpperCase();
+      if (window.innerWidth <= 768) toggleSidebar();
+    }
+
+    // File Handling
+    function handleFileSelect(e) {
+      const files = Array.from(e.target.files);
+      selectedFiles = selectedFiles.concat(files);
+      renderFilePreviews();
+    }
+
+    function renderFilePreviews() {
+      const container = document.getElementById("file-previews");
+      container.innerHTML = "";
+      selectedFiles.forEach((file, index) => {
+        const tag = document.createElement("div");
+        tag.className = "file-tag";
+        tag.innerHTML = `${file.name} <span onclick="removeFile(${index})" style="cursor:pointer;">✕</span>`;
+        container.appendChild(tag);
+      });
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderFilePreviews();
+    }
+
+    function toggleWebSearch() {
+      isWebSearchActive = !isWebSearchActive;
+      const btn = document.getElementById("web-search-toggle");
+      btn.classList.toggle("active", isWebSearchActive);
+      btn.style.color = isWebSearchActive ? "var(--accent)" : "var(--text-muted)";
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    // Send Message
+    async function sendMessage() {
+      const inputEl = document.getElementById("user-input");
+      const message = inputEl.value.trim();
+      if (!message && selectedFiles.length === 0) return;
+
+      const chatContainer = document.getElementById("chat-messages");
+
+      // Display User Message
+      const userMsgDiv = document.createElement("div");
+      userMsgDiv.className = "message user";
+      userMsgDiv.innerText = message + (selectedFiles.length ? `\n[Đính kèm ${selectedFiles.length} file]` : "");
+      chatContainer.appendChild(userMsgDiv);
+
+      inputEl.value = "";
+
+      // Display Typing Indicator
+      const aiMsgDiv = document.createElement("div");
+      aiMsgDiv.className = "message ai";
+      aiMsgDiv.innerHTML = `<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+      chatContainer.appendChild(aiMsgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      // Prepare Form Data
+      const formData = new FormData();
+      formData.append("message", message);
+      formData.append("webSearch", isWebSearchActive);
+      formData.append("memories", JSON.stringify(memories));
+      formData.append("systemInstruction", `Bạn là ${settings.aiName}. Phong cách trả lời: ${settings.style}.`);
+      
+      selectedFiles.forEach(file => formData.append("files", file));
+
+      selectedFiles = [];
+      renderFilePreviews();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          let htmlResult = marked.parse(data.reply);
+          
+          if (data.sources && data.sources.length > 0) {
+            htmlResult += `<div class="sources-list"><b>Nguồn tham khảo:</b><br>` + 
+              data.sources.map(s => `<a href="${s.uri}" target="_blank" style="color:var(--accent);">${s.title || s.uri}</a>`).join("<br>") + 
+              `</div>`;
+          }
+
+          htmlResult += `<br><button onclick="speakText(this)" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">🔊 Đọc</button>`;
+
+          aiMsgDiv.innerHTML = htmlResult;
+        } else {
+          aiMsgDiv.innerText = "Lỗi: " + (data.error || "Không thể xử lý.");
+        }
+      } catch (err) {
+        aiMsgDiv.innerText = "Lỗi kết nối máy chủ backend.";
+      }
+
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Voice Input & Output
+    function toggleSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("Trình duyệt không hỗ trợ Speech Recognition");
+        return;
+      }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'vi-VN';
+      
+      const micBtn = document.getElementById("mic-btn");
+      micBtn.style.color = "red";
+
+      recognition.onresult = (event) => {
+        document.getElementById("user-input").value = event.results[0][0].transcript;
+        micBtn.style.color = "var(--text-muted)";
+      };
+
+      recognition.onerror = () => { micBtn.style.color = "var(--text-muted)"; };
+      recognition.onend = () => { micBtn.style.color = "var(--text-muted)"; };
+
+      recognition.start();
+    }
+
+    function speakText(btn) {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        return;
+      }
+      const text = btn.parentElement.innerText.replace("🔊 Đọc", "");
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "vi-VN";
+      utterance.onend = () => { isSpeaking = false; };
+      isSpeaking = true;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Coding Studio Function
+    function runCode() {
+      const code = document.getElementById("code-input").value;
+      const iframe = document.getElementById("code-preview");
+      iframe.srcdoc = code;
+    }
+
+    // Canvas Clear
+    function clearCanvas() {
+      document.getElementById("canvas-input").value = "";
+    }
+
+    // Image Generation
+    async function generateImage() {
+      const prompt = document.getElementById("image-prompt").value;
+      const resultDiv = document.getElementById("image-result");
+      if (!prompt) return;
+
+      resultDiv.innerHTML = "Đang tạo ảnh...";
+
+      try {
+        const res = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultDiv.innerHTML = `<img src="${data.imageUrl}" style="max-width:100%; border-radius:8px;">`;
+        } else {
+          resultDiv.innerText = "Lỗi: " + data.error;
+        }
+      } catch (err) {
+        resultDiv.innerText = "Lỗi kết nối tới server.";
+      }
+    }
+
+    // Privacy & Memory Management
+    function renderMemories() {
+      const list = document.getElementById("memory-list");
+      list.innerHTML = "";
+      memories.forEach((mem, i) => {
+        const li = document.createElement("li");
+        li.style.padding = "6px 0";
+        li.innerHTML = `• ${mem} <span onclick="removeMemory(${i})" style="color:red; cursor:pointer; margin-left:8px;">[Xóa]</span>`;
+        list.appendChild(li);
+      });
+    }
+
+    function addM
